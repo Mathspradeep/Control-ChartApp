@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Online Control Chart App</title>
+    <title>Online Control Chart App with AI Suggestions</title>
     
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,6 +14,9 @@
     <!-- Chart.js for creating charts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+    <!-- Showdown for rendering Markdown from AI -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,6 +58,34 @@
         input[type="file"]::file-selector-button {
             @apply bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-200 shadow-sm cursor-pointer mr-4;
         }
+        /* AI Suggestions Box Styles */
+        #aiSuggestionsWrapper .prose {
+            max-width: none;
+        }
+        #aiSuggestionsWrapper .prose h3 {
+            margin-bottom: 0.5em;
+        }
+        #aiSuggestionsWrapper .prose ul {
+            padding-left: 1.25em;
+            margin-top: 0.5em;
+        }
+        #aiSuggestionsWrapper .prose p {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="antialiased text-gray-800">
@@ -63,14 +94,14 @@
         
         <!-- Header -->
         <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">Online Control Chart Creator</h1>
-            <p class="text-md text-gray-600 mt-2">For both Variable (I-MR, X-bar R) and Attribute (P, NP, C, U) Data</p>
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">AI-Powered Control Chart Creator</h1>
+            <p class="text-md text-gray-600 mt-2">Generate charts and get expert analysis on your process stability.</p>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <!-- Left Column: Configuration -->
-            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg">
+            <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-lg self-start">
                 <h2 class="text-2xl font-semibold mb-4 border-b pb-3">Configuration</h2>
                 
                 <!-- Chart Type Selection -->
@@ -93,13 +124,9 @@
                 <!-- Data Inputs Section -->
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-2">2. Enter Data</label>
-                    
-                    <!-- Variable Data Input -->
                     <div id="variableDataContainer">
                         <textarea id="dataInput" rows="6" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Paste measurements here. e.g., 20.1, 19.8, 20.3,...">20.1, 19.8, 20.3, 20.8, 19.5, 20.5, 21.2, 19.6, 20.0, 20.4, 20.6, 19.9, 20.3, 19.8, 20.9, 21.0, 19.4, 20.1, 20.7, 19.7</textarea>
                     </div>
-
-                    <!-- Attribute Data Input -->
                     <div id="attributeDataContainer" class="space-y-3 hidden">
                          <textarea id="defectsInput" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Paste nonconformities/defects here. e.g., 8, 10, 6, 9,..."></textarea>
                          <textarea id="subgroupSizesInput" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Paste subgroup sizes here. e.g., 100, 100, 98, 102,..."></textarea>
@@ -121,33 +148,43 @@
 
                 <!-- Action Button -->
                 <div class="mt-6">
-                    <button id="generateChartBtn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 shadow-md">
-                        Generate Chart
+                    <button id="generateChartBtn" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-200 shadow-md flex items-center justify-center">
+                        <span id="btn-text">Generate Chart</span>
+                        <svg id="btn-loader" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Right Column: Charts and Stats -->
+            <!-- Right Column: Charts, Stats, and AI Suggestions -->
             <div class="lg:col-span-2 space-y-8">
                 <!-- Chart 1 Display -->
                 <div id="chart1-wrapper" class="bg-white p-6 rounded-xl shadow-lg hidden">
                     <h3 id="chart1-title" class="text-xl font-semibold mb-4 text-center"></h3>
-                    <div class="chart-container">
-                        <canvas id="chart1"></canvas>
-                    </div>
+                    <div class="chart-container"><canvas id="chart1"></canvas></div>
                     <div id="stats1" class="mt-4 text-sm text-gray-600 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center"></div>
                 </div>
 
                 <!-- Chart 2 Display -->
                 <div id="chart2-wrapper" class="bg-white p-6 rounded-xl shadow-lg hidden">
                     <h3 id="chart2-title" class="text-xl font-semibold mb-4 text-center"></h3>
-                    <div class="chart-container">
-                        <canvas id="chart2"></canvas>
-                    </div>
+                    <div class="chart-container"><canvas id="chart2"></canvas></div>
                     <div id="stats2" class="mt-4 text-sm text-gray-600 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center"></div>
                 </div>
                 
-                <!-- Placeholder when no chart is generated -->
+                <!-- AI Suggestions -->
+                <div id="aiSuggestionsWrapper" class="bg-white p-6 rounded-xl shadow-lg hidden">
+                    <h3 class="text-xl font-semibold mb-2 text-gray-900 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path></svg>
+                        AI Analysis & Suggestions
+                    </h3>
+                    <div id="aiLoader" class="loader hidden"></div>
+                    <div id="aiSuggestionsContent" class="prose text-gray-700 mt-4"></div>
+                </div>
+
+                <!-- Placeholder -->
                 <div id="placeholder" class="bg-white p-12 rounded-xl shadow-lg text-center text-gray-500 flex flex-col items-center justify-center h-full">
                     <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"></path></svg>
                     <p class="text-lg font-medium">Your charts will appear here.</p>
@@ -157,7 +194,6 @@
         </div>
     </div>
 
-    <!-- Toast for error messages -->
     <div id="toast" class="toast"></div>
 
     <script>
@@ -165,31 +201,32 @@
         const dataInputEl = document.getElementById('dataInput');
         const defectsInputEl = document.getElementById('defectsInput');
         const subgroupSizesInputEl = document.getElementById('subgroupSizesInput');
-        
         const subgroupSizeEl = document.getElementById('subgroupSize');
         const subgroupSizeContainer = document.getElementById('subgroupSizeContainer');
         const variableDataContainer = document.getElementById('variableDataContainer');
         const attributeDataContainer = document.getElementById('attributeDataContainer');
-        
         const chartTypeEl = document.getElementById('chartType');
         const generateChartBtn = document.getElementById('generateChartBtn');
+        const btnText = document.getElementById('btn-text');
+        const btnLoader = document.getElementById('btn-loader');
         const placeholderEl = document.getElementById('placeholder');
         const toastEl = document.getElementById('toast');
         const fileInputEl = document.getElementById('fileInput');
-
-        // Chart wrappers and canvases
         const chart1Wrapper = document.getElementById('chart1-wrapper');
         const chart1Title = document.getElementById('chart1-title');
         const chart1Canvas = document.getElementById('chart1');
         const stats1El = document.getElementById('stats1');
-
         const chart2Wrapper = document.getElementById('chart2-wrapper');
         const chart2Title = document.getElementById('chart2-title');
         const chart2Canvas = document.getElementById('chart2');
         const stats2El = document.getElementById('stats2');
+        const aiSuggestionsWrapper = document.getElementById('aiSuggestionsWrapper');
+        const aiLoader = document.getElementById('aiLoader');
+        const aiSuggestionsContent = document.getElementById('aiSuggestionsContent');
 
         let chart1Instance = null;
         let chart2Instance = null;
+        const markdownConverter = new showdown.Converter();
 
         const CONTROL_CHART_CONSTANTS = {
             2: { d2: 1.128, D3: 0, D4: 3.267, A2: 1.880 }, 3: { d2: 1.693, D3: 0, D4: 2.574, A2: 1.023 },
@@ -209,25 +246,15 @@
 
         function getParsedVariableData() {
             const data = parseCommaSeparatedString(dataInputEl.value);
-            if (data === null) {
-                showToast("Measurement data contains non-numeric values.");
-                return null;
-            }
+            if (data === null) { showToast("Measurement data contains non-numeric values."); return null; }
             return data;
         }
 
         function getParsedAttributeData() {
             const defects = parseCommaSeparatedString(defectsInputEl.value);
             const sizes = parseCommaSeparatedString(subgroupSizesInputEl.value);
-
-            if (defects === null) {
-                showToast("Nonconformities data contains non-numeric values.");
-                return null;
-            }
-            if (sizes === null) {
-                showToast("Subgroup sizes data contains non-numeric values.");
-                return null;
-            }
+            if (defects === null) { showToast("Nonconformities data contains non-numeric values."); return null; }
+            if (sizes === null) { showToast("Subgroup sizes data contains non-numeric values."); return null; }
             return { defects, sizes };
         }
 
@@ -248,6 +275,8 @@
             if (chart2Instance) chart2Instance.destroy();
             chart1Instance = null;
             chart2Instance = null;
+            aiSuggestionsWrapper.classList.add('hidden');
+            aiSuggestionsContent.innerHTML = '';
         }
 
         function renderStats(el, stats) {
@@ -261,10 +290,8 @@
             }
         }
 
-        function createChart(canvasEl, title, labels, data, limits, yAxisLabel = 'Value') {
+        function createChart(canvasEl, labels, data, limits, yAxisLabel = 'Value') {
             const ctx = canvasEl.getContext('2d');
-            
-            // Handle both fixed and variable control limits
             const uclData = Array.isArray(limits.UCL) ? limits.UCL : Array(labels.length).fill(limits.UCL);
             const lclData = Array.isArray(limits.LCL) ? limits.LCL : Array(labels.length).fill(limits.LCL);
             const clData = Array.isArray(limits.CL) ? limits.CL : Array(labels.length).fill(limits.CL);
@@ -290,12 +317,82 @@
                 }
             });
         }
+        
+        // --- AI Suggestions Logic ---
+        async function getAISuggestions(chartTitle, data, limits) {
+            aiSuggestionsWrapper.classList.remove('hidden');
+            aiLoader.classList.remove('hidden');
+            aiSuggestionsContent.innerHTML = '';
+            
+            const ucl = Array.isArray(limits.UCL) ? 'Varies per point' : limits.UCL.toFixed(3);
+            const lcl = Array.isArray(limits.LCL) ? 'Varies per point' : limits.LCL.toFixed(3);
+            
+            let outOfControlPoints = [];
+            data.forEach((point, index) => {
+                const uclValue = Array.isArray(limits.UCL) ? limits.UCL[index] : limits.UCL;
+                const lclValue = Array.isArray(limits.LCL) ? limits.LCL[index] : limits.LCL;
+                if (point > uclValue || point < lclValue) {
+                    outOfControlPoints.push(`Point ${index + 1} (${point.toFixed(3)})`);
+                }
+            });
+
+            const prompt = `
+You are a world-class Quality Control and Process Improvement expert. Your task is to analyze control chart data and provide clear, actionable insights.
+
+**Analysis Request:**
+Please analyze the following control chart data. The process is considered "out of control" if data points fall outside the control limits (UCL/LCL).
+
+**Chart Information:**
+- **Chart Type:** ${chartTitle}
+- **Center Line (CL):** ${limits.CL.toFixed(3)}
+- **Upper Control Limit (UCL):** ${ucl}
+- **Lower Control Limit (LCL):** ${lcl}
+- **Data Points:** ${data.map(d => d.toFixed(3)).join(', ')}
+- **Identified Out-of-Control Points:** ${outOfControlPoints.length > 0 ? outOfControlPoints.join(', ') : 'None'}
+
+**Your Response:**
+Based on the data, provide the following in Markdown format:
+
+1.  **Process State Summary:** Start with a clear, concise statement: "The process is **in control**." or "The process is **out of control**.". Briefly explain why.
+2.  **Detailed Observations:**
+    - If out of control, list the specific points that are outside the limits.
+    - Comment on any unusual patterns, trends, or runs, even if they are within the limits (e.g., 7 points in a row trending up/down, points hugging the center line).
+3.  **Potential Root Causes:**
+    - For any out-of-control signals or unusual patterns, suggest potential root causes. Categorize them if possible (e.g., Machine, Method, Material, Manpower).
+4.  **Actionable Recommendations:**
+    - Provide a clear, numbered list of recommended actions. These should be practical steps the user can take to investigate the issues and improve the process. For an in-control process, suggest monitoring strategies.
+`;
+            
+            const apiKey = ""; // API key will be injected by the environment
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result.candidates[0].content.parts[0].text;
+                aiSuggestionsContent.innerHTML = markdownConverter.makeHtml(text);
+
+            } catch (error) {
+                console.error("AI suggestion error:", error);
+                aiSuggestionsContent.innerHTML = `<p class="text-red-600">Could not retrieve AI analysis. Please check your connection or try again later.</p>`;
+            } finally {
+                aiLoader.classList.add('hidden');
+            }
+        }
 
         // --- Chart Generation Logic ---
-
         function handleGenerateIMR() {
             const data = getParsedVariableData();
-            if (!data || data.length < 2) { showToast("I-MR chart requires at least 2 data points."); return; }
+            if (!data || data.length < 2) { showToast("I-MR chart requires at least 2 data points."); return Promise.reject(); }
             destroyCharts();
 
             const mean = data.reduce((a, b) => a + b, 0) / data.length;
@@ -308,20 +405,21 @@
             
             showChartWrappers(true);
             chart1Title.textContent = 'Individuals (I) Chart';
-            chart1Instance = createChart(chart1Canvas, 'I-Chart', data.map((_, i) => i + 1), data, iLimits, 'Measurement');
+            chart1Instance = createChart(chart1Canvas, data.map((_, i) => i + 1), data, iLimits, 'Measurement');
             renderStats(stats1El, { Mean: mean, UCL: iLimits.UCL, LCL: iLimits.LCL });
 
             chart2Title.textContent = 'Moving Range (MR) Chart';
-            chart2Instance = createChart(chart2Canvas, 'MR-Chart', movingRanges.map((_, i) => i + 2), movingRanges, mrLimits, 'Moving Range');
+            chart2Instance = createChart(chart2Canvas, movingRanges.map((_, i) => i + 2), movingRanges, mrLimits, 'Moving Range');
             renderStats(stats2El, { 'Avg MR': avgMR, UCL: mrLimits.UCL, LCL: mrLimits.LCL });
+            return getAISuggestions('Individuals (I) Chart', data, iLimits);
         }
 
         function handleGenerateXbarR() {
             const data = getParsedVariableData();
             const subgroupSize = parseInt(subgroupSizeEl.value);
-            if (!data) return;
-            if (isNaN(subgroupSize) || subgroupSize < 2 || subgroupSize > 10) { showToast("Subgroup size must be between 2 and 10."); return; }
-            if (data.length % subgroupSize !== 0) { showToast(`Data count (${data.length}) is not divisible by subgroup size (${subgroupSize}).`); return; }
+            if (!data) return Promise.reject();
+            if (isNaN(subgroupSize) || subgroupSize < 2 || subgroupSize > 10) { showToast("Subgroup size must be between 2 and 10."); return Promise.reject(); }
+            if (data.length % subgroupSize !== 0) { showToast(`Data count (${data.length}) is not divisible by subgroup size (${subgroupSize}).`); return Promise.reject(); }
             
             destroyCharts();
 
@@ -339,18 +437,19 @@
 
             showChartWrappers(true);
             chart1Title.innerHTML = 'Subgroup Mean (X&#772;) Chart';
-            chart1Instance = createChart(chart1Canvas, 'X-bar Chart', subgroupMeans.map((_, i) => i + 1), subgroupMeans, xbarLimits, 'Subgroup Mean');
+            chart1Instance = createChart(chart1Canvas, subgroupMeans.map((_, i) => i + 1), subgroupMeans, xbarLimits, 'Subgroup Mean');
             renderStats(stats1El, { 'X&#772;&#772;': xDoubleBar, UCL: xbarLimits.UCL, LCL: xbarLimits.LCL });
 
             chart2Title.textContent = 'Subgroup Range (R) Chart';
-            chart2Instance = createChart(chart2Canvas, 'R Chart', subgroupRanges.map((_, i) => i + 1), subgroupRanges, rLimits, 'Subgroup Range');
+            chart2Instance = createChart(chart2Canvas, subgroupRanges.map((_, i) => i + 1), subgroupRanges, rLimits, 'Subgroup Range');
             renderStats(stats2El, { 'R&#772;': rBar, UCL: rLimits.UCL, LCL: rLimits.LCL });
+            return getAISuggestions('X-bar Chart', subgroupMeans, xbarLimits);
         }
 
         function handleGeneratePChart() {
             const { defects, sizes } = getParsedAttributeData();
-            if (!defects || !sizes || defects.length === 0 || sizes.length === 0) { showToast("P-Chart requires both nonconformities and subgroup sizes."); return; }
-            if (defects.length !== sizes.length) { showToast("The number of defect counts and subgroup sizes must be equal."); return; }
+            if (!defects || !sizes || defects.length === 0 || sizes.length === 0) { showToast("P-Chart requires both nonconformities and subgroup sizes."); return Promise.reject(); }
+            if (defects.length !== sizes.length) { showToast("The number of defect counts and subgroup sizes must be equal."); return Promise.reject(); }
             destroyCharts();
 
             const totalDefects = defects.reduce((a, b) => a + b, 0);
@@ -366,15 +465,16 @@
 
             showChartWrappers(false);
             chart1Title.textContent = 'P Chart (Proportion Nonconforming)';
-            chart1Instance = createChart(chart1Canvas, 'P Chart', proportions.map((_, i) => i + 1), proportions, limits, 'Proportion');
+            chart1Instance = createChart(chart1Canvas, proportions.map((_, i) => i + 1), proportions, limits, 'Proportion');
             renderStats(stats1El, { 'p&#772;': pBar, 'Total Defects': totalDefects, 'Total Inspected': totalSize, UCL: 'Varies', LCL: 'Varies' });
+            return getAISuggestions('P Chart', proportions, limits);
         }
 
         function handleGenerateNpChart() {
             const { defects } = getParsedAttributeData();
             const n = parseInt(subgroupSizeEl.value);
-            if (!defects || defects.length === 0) { showToast("NP-Chart requires nonconformity counts."); return; }
-            if (isNaN(n) || n <= 0) { showToast("NP-Chart requires a constant, positive subgroup size."); return; }
+            if (!defects || defects.length === 0) { showToast("NP-Chart requires nonconformity counts."); return Promise.reject(); }
+            if (isNaN(n) || n <= 0) { showToast("NP-Chart requires a constant, positive subgroup size."); return Promise.reject(); }
             destroyCharts();
 
             const k = defects.length;
@@ -382,40 +482,34 @@
             const pBar = totalDefects / (k * n);
             const npBar = n * pBar;
 
-            const limits = {
-                CL: npBar,
-                UCL: npBar + 3 * Math.sqrt(npBar * (1 - pBar)),
-                LCL: Math.max(0, npBar - 3 * Math.sqrt(npBar * (1 - pBar)))
-            };
+            const limits = { CL: npBar, UCL: npBar + 3 * Math.sqrt(npBar * (1 - pBar)), LCL: Math.max(0, npBar - 3 * Math.sqrt(npBar * (1 - pBar))) };
 
             showChartWrappers(false);
             chart1Title.textContent = 'NP Chart (Number Nonconforming)';
-            chart1Instance = createChart(chart1Canvas, 'NP Chart', defects.map((_, i) => i + 1), defects, limits, 'Number Nonconforming');
+            chart1Instance = createChart(chart1Canvas, defects.map((_, i) => i + 1), defects, limits, 'Number Nonconforming');
             renderStats(stats1El, { 'np&#772;': npBar, 'p&#772;': pBar, UCL: limits.UCL, LCL: limits.LCL });
+            return getAISuggestions('NP Chart', defects, limits);
         }
 
         function handleGenerateCChart() {
             const { defects } = getParsedAttributeData();
-            if (!defects || defects.length === 0) { showToast("C-Chart requires defect counts."); return; }
+            if (!defects || defects.length === 0) { showToast("C-Chart requires defect counts."); return Promise.reject(); }
             destroyCharts();
 
             const cBar = defects.reduce((a, b) => a + b, 0) / defects.length;
-            const limits = {
-                CL: cBar,
-                UCL: cBar + 3 * Math.sqrt(cBar),
-                LCL: Math.max(0, cBar - 3 * Math.sqrt(cBar))
-            };
+            const limits = { CL: cBar, UCL: cBar + 3 * Math.sqrt(cBar), LCL: Math.max(0, cBar - 3 * Math.sqrt(cBar)) };
 
             showChartWrappers(false);
             chart1Title.textContent = 'C Chart (Number of Defects)';
-            chart1Instance = createChart(chart1Canvas, 'C Chart', defects.map((_, i) => i + 1), defects, limits, 'Defect Count');
+            chart1Instance = createChart(chart1Canvas, defects.map((_, i) => i + 1), defects, limits, 'Defect Count');
             renderStats(stats1El, { 'c&#772;': cBar, UCL: limits.UCL, LCL: limits.LCL });
+            return getAISuggestions('C Chart', defects, limits);
         }
 
         function handleGenerateUChart() {
             const { defects, sizes } = getParsedAttributeData();
-            if (!defects || !sizes || defects.length === 0 || sizes.length === 0) { showToast("U-Chart requires both defect counts and subgroup sizes."); return; }
-            if (defects.length !== sizes.length) { showToast("The number of defect counts and subgroup sizes must be equal."); return; }
+            if (!defects || !sizes || defects.length === 0 || sizes.length === 0) { showToast("U-Chart requires both defect counts and subgroup sizes."); return Promise.reject(); }
+            if (defects.length !== sizes.length) { showToast("The number of defect counts and subgroup sizes must be equal."); return Promise.reject(); }
             destroyCharts();
 
             const totalDefects = defects.reduce((a, b) => a + b, 0);
@@ -431,13 +525,17 @@
 
             showChartWrappers(false);
             chart1Title.textContent = 'U Chart (Defects Per Unit)';
-            chart1Instance = createChart(chart1Canvas, 'U Chart', uValues.map((_, i) => i + 1), uValues, limits, 'Defects Per Unit');
+            chart1Instance = createChart(chart1Canvas, uValues.map((_, i) => i + 1), uValues, limits, 'Defects Per Unit');
             renderStats(stats1El, { 'u&#772;': uBar, 'Total Defects': totalDefects, 'Total Units': totalSize, UCL: 'Varies', LCL: 'Varies' });
+            return getAISuggestions('U Chart', uValues, limits);
         }
 
-
         // --- Event Handlers ---
-        function handleGenerateChart() {
+        async function handleGenerateChart() {
+            btnText.classList.add('hidden');
+            btnLoader.classList.remove('hidden');
+            generateChartBtn.disabled = true;
+
             const chartType = chartTypeEl.value;
             const handlers = {
                 'imr': handleGenerateIMR, 'xbar-r': handleGenerateXbarR,
@@ -445,22 +543,26 @@
                 'c-chart': handleGenerateCChart, 'u-chart': handleGenerateUChart,
             };
             if (handlers[chartType]) {
-                handlers[chartType]();
+                try {
+                    await handlers[chartType]();
+                } catch (error) {
+                    // Error is handled by showToast in individual functions
+                    console.log("Chart generation failed validation.");
+                }
             }
+            
+            btnText.classList.remove('hidden');
+            btnLoader.classList.add('hidden');
+            generateChartBtn.disabled = false;
         }
         
         function handleChartTypeChange() {
             const type = chartTypeEl.value;
             const isVariable = ['imr', 'xbar-r'].includes(type);
-            const isAttribute = !isVariable;
-
-            variableDataContainer.classList.toggle('hidden', isAttribute);
+            variableDataContainer.classList.toggle('hidden', !isVariable);
             attributeDataContainer.classList.toggle('hidden', isVariable);
-            
             subgroupSizeContainer.classList.toggle('hidden', type !== 'xbar-r' && type !== 'np-chart');
             subgroupSizesInputEl.classList.toggle('hidden', type !== 'p-chart' && type !== 'u-chart');
-            
-            // Adjust placeholders based on chart type
             if (type === 'c-chart') {
                 defectsInputEl.placeholder = "Paste defect counts here. e.g., 5, 3, 6, 9,...";
             } else {
@@ -489,9 +591,7 @@
 
                     if (isAttribute) {
                         defectsInputEl.value = col1.join(', ');
-                        if (col2.length > 0) {
-                            subgroupSizesInputEl.value = col2.join(', ');
-                        }
+                        if (col2.length > 0) { subgroupSizesInputEl.value = col2.join(', '); }
                     } else {
                         dataInputEl.value = col1.join(', ');
                     }
@@ -508,8 +608,7 @@
         chartTypeEl.addEventListener('change', handleChartTypeChange);
         fileInputEl.addEventListener('change', handleFileImport);
         
-        handleChartTypeChange(); // Set initial UI state
-
+        handleChartTypeChange();
     </script>
 </body>
 </html>
